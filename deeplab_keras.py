@@ -107,34 +107,41 @@ def main():
     #print('\n')
 
     #################################################################
-    ### Evaluation
+    ### Sample visualization
     #################################################################
+    MULTI_SCALE = 0
     conf_mat_total = np.zeros((NUM_CLASSES,NUM_CLASSES))
     pbar = InitBar()
     for i in range(Nv):
         pbar(100.0*float(i)/float(Nv))
         img = val_images[i]
-        img075 = cv2.resize(img, (int(0.75*H),int(0.75*W)), cv2.INTER_CUBIC)
-        img050 = cv2.resize(img, (int(0.50*H),int(0.50*W)), cv2.INTER_CUBIC)
-        prediction100 = model.predict(np.expand_dims(img, axis=0))
-        prediction075 = model.predict(np.expand_dims(img075, axis=0))
-        prediction050 = model.predict(np.expand_dims(img050, axis=0))
-        
-        prediction100 = np.reshape(prediction100, (40*40, NUM_CLASSES))
-        prediction075 = np.reshape(prediction075, (40*40, NUM_CLASSES))
-        prediction050 = np.reshape(prediction050, (40*40, NUM_CLASSES))
+        """ Strangely single-scale works a little better.
+            I have even tried multi-scale with merging in (40,40) resolution
+            and then resizing the result, but even though it boosted
+            the performance 0.2%, it was still lower than the Single-scale architecture. """
+        if not MULTI_SCALE:
+            prediction100 = model.predict(np.expand_dims(img, axis=0))
+            prediction    = np.reshape(prediction100, (H*W, NUM_CLASSES))
+        else:
+            img075 = cv2.resize(img, (int(0.75*H),int(0.75*W)), cv2.INTER_CUBIC)
+            img050 = cv2.resize(img, (int(0.50*H),int(0.50*W)), cv2.INTER_CUBIC)
+            prediction100 = model.predict(np.expand_dims(img, axis=0))
+            prediction075 = model.predict(np.expand_dims(img075, axis=0))
+            prediction050 = model.predict(np.expand_dims(img050, axis=0))
 
-        prediction = np.maximum(prediction100, prediction075, prediction050)
+            prediction100 = np.reshape(prediction100, (H*W, NUM_CLASSES))
+            prediction075 = np.reshape(prediction075, (H*W, NUM_CLASSES))
+            prediction050 = np.reshape(prediction050, (H*W, NUM_CLASSES))
+            prediction = np.maximum(prediction100, prediction075, prediction050)
+
         prediction = np.argmax(prediction, axis=-1)
-        prediction = prediction.astype(np.uint8) # We change the type to be able to use Scipy.imresize, otherwise, it strangely changes the gray-level scalings after resize operation.
-        pred_img = np.reshape(prediction, (40,40))
-        pred_img = imresize(pred_img, (H,W), interp='nearest')
+        pred_img = np.reshape(prediction, (H,W))
         gt_img = val_labels[i]
         gt = gt_img[gt_img>=0]
         pred = pred_img[gt_img>=0]
         conf_mat = confusion_matrix(gt, pred, labels=list(range(NUM_CLASSES))) 
         conf_mat_total += conf_mat
-    
+
     ious = np.zeros((NUM_CLASSES,1))
     for l in range(NUM_CLASSES):
         ious[l] = conf_mat_total[l,l] / (np.sum(conf_mat_total[l,:]) +

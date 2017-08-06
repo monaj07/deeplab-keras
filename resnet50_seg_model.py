@@ -404,10 +404,9 @@ def resnet50_deeplab():
     conv38_4 = Conv2D(filters=NUM_CLASSES, kernel_size=3, dilation_rate=(24,24), padding='same', name='fc1_voc12_c3')(relu38_1)
 
     output   = Add(name='fc1_voc12')([conv38_1, conv38_2, conv38_3, conv38_4])
-    output   = Lambda(lambda image: tf.image.resize_images(image, (40,40)))(output)
+    output   = Lambda(lambda image: tf.image.resize_images(image, (H,W)))(output)
     #output = UpSampling2D((3,3))(output)
     #output = MaxPooling2D(pool_size=(2,2), strides=(2,2))(output)
-    #output   = Reshape((tf.multiply(output.shape[0],output.shape[1]),NUM_CLASSES))(output)
     #output   = Activation('softmax')(output)
 
     model = Model(inputs=input_layer, outputs=output)
